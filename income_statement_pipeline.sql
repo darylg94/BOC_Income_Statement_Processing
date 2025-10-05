@@ -245,27 +245,30 @@ AS
 $$
 DECLARE
     doc_id VARCHAR;
-    parse_result RESULTSET;
-    extract_result RESULTSET;
-    final_result VARCHAR;
+    parse_cmd VARCHAR;
+    extract_cmd VARCHAR;
+    parse_result VARCHAR;
+    extract_result VARCHAR;
 BEGIN
     -- Generate document ID
     doc_id := 'DOC_' || REPORT_YEAR || '_' || REPLACE(REPORT_PERIOD, ' ', '_');
     
-    -- Step 1: Parse PDF with OCR using EXECUTE IMMEDIATE
-    parse_result := (EXECUTE IMMEDIATE 
-        'CALL RAW.PARSE_FINANCIAL_REPORT(?, ?, ?)'
-        USING (FILE_PATH, REPORT_YEAR, REPORT_PERIOD)
-    );
+    -- Build dynamic SQL commands with literal values
+    parse_cmd := 'CALL RAW.PARSE_FINANCIAL_REPORT(' || 
+                 '''' || FILE_PATH || ''', ' ||
+                 REPORT_YEAR || ', ' ||
+                 '''' || REPORT_PERIOD || '''' ||
+                 ')';
     
-    -- Step 2: Extract income statement data using EXECUTE IMMEDIATE
-    extract_result := (EXECUTE IMMEDIATE 
-        'CALL RAW.EXTRACT_INCOME_STATEMENT(?)'
-        USING (doc_id)
-    );
+    extract_cmd := 'CALL RAW.EXTRACT_INCOME_STATEMENT(''' || doc_id || ''')';
     
-    final_result := 'Processing complete for document: ' || doc_id;
-    RETURN final_result;
+    -- Step 1: Parse PDF with OCR
+    EXECUTE IMMEDIATE :parse_cmd;
+    
+    -- Step 2: Extract income statement data
+    EXECUTE IMMEDIATE :extract_cmd;
+    
+    RETURN 'Processing complete for document: ' || doc_id;
 END;
 $$;
 
