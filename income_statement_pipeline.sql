@@ -96,21 +96,17 @@ $$
 DECLARE
     doc_id VARCHAR;
     parsed_content VARIANT;
+    stage_file_path VARCHAR;
 BEGIN
     -- Generate unique document ID
     doc_id := 'DOC_' || REPORT_YEAR || '_' || REPLACE(REPORT_PERIOD, ' ', '_');
     
-    -- Use AI_PARSE_DOCUMENT to extract text from PDF with OCR
-    -- Mode: LAYOUT preserves document structure including tables
-    parsed_content := PARSE_JSON(
-        AI_PARSE_DOCUMENT(
-            '@RAW.Documents',
-            FILE_PATH,
-            OBJECT_CONSTRUCT(
-                'mode', 'LAYOUT',
-                'page_split', TRUE
-            )
-        )
+    -- Build the stage file reference
+    stage_file_path := '@RAW.Documents/' || FILE_PATH;
+    
+    -- Use SNOWFLAKE.CORTEX.PARSE_DOCUMENT to extract text from PDF with OCR
+    parsed_content := SNOWFLAKE.CORTEX.PARSE_DOCUMENT(
+        stage_file_path
     );
     
     -- Store parsed content
