@@ -12,7 +12,7 @@ USE DATABASE BOCA_INCOME_STATEMENT;
 
 
 -- Verify files uploaded
-LIST @Documents;
+LIST @RAW.Documents;
 
 -- =====================================================
 -- STEP 2: Process Reports
@@ -59,8 +59,6 @@ ORDER BY report_year DESC;
 -- =====================================================
 -- STEP 4: View Results & Analysis
 -- =====================================================
-
-SELECT '=== STEP 4: Viewing Results ===' as step;
 
 -- Summary Dashboard
 SELECT 
