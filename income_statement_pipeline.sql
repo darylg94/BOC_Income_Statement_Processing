@@ -94,38 +94,37 @@ LANGUAGE SQL
 AS
 $$
 DECLARE
-    doc_id VARCHAR;
     parsed_result VARIANT;
 BEGIN
-    -- Generate unique document ID
-    doc_id := 'DOC_' || REPORT_YEAR || '_' || REPLACE(REPORT_PERIOD, ' ', '_');
     
     -- Use AI_PARSE_DOCUMENT with correct syntax from documentation
     -- Reference: https://docs.snowflake.com/en/user-guide/snowflake-cortex/parse-document
     SELECT AI_PARSE_DOCUMENT(
-        TO_FILE('@RAW.Documents', FILE_PATH),
-        {'mode': 'LAYOUT'}
+        TO_FILE('@BOCA_INCOME_STATEMENT.RAW.DOCUMENTS', :FILE_PATH),
+        {'mode': 'LAYOUT', 'page_split': true}
     ) INTO parsed_result;
     
     -- Store parsed content
     INSERT INTO RAW.PARSED_DOCUMENTS (
-        document_id,
         file_name,
         report_year,
         report_period,
         parsed_content
     ) VALUES (
-        doc_id,
-        FILE_PATH,
+        :FILE_PATH,
         REPORT_YEAR,
         REPORT_PERIOD,
         parsed_result
     );
     
-    RETURN 'Document parsed successfully. Document ID: ' || doc_id;
+    RETURN 'Document parsed successfully.';
 END;
 $$;
+CALL PARSE_FINANCIAL_REPORT(
+    '2024 Final Results Announcement EN 20250313.pdf', 2024, 'FY2024'
+);
 
+SELECT * FROM PARSED_DOCUMENTS;
 -- =====================================================
 -- STEP 2: Extract Income Statement using AI_EXTRACT
 -- =====================================================
@@ -140,48 +139,24 @@ DECLARE
     extracted_data VARIANT;
 BEGIN
     -- Get the parsed document content from all pages
-    -- AI_PARSE_DOCUMENT returns JSON with structure: {"metadata": {...}, "pages": [{"content": "..."}]}
     SELECT LISTAGG(page_content.value:content::VARCHAR, '\n\n') INTO parsed_text
     FROM RAW.PARSED_DOCUMENTS,
-    LATERAL FLATTEN(input => parsed_content:pages) page_content
-    WHERE document_id = DOCUMENT_ID;
+    LATERAL FLATTEN(input => parsed_content:pages) page_content;
     
-    -- Use AI_EXTRACT to pull out specific income statement line items
+    -- Use AI_EXTRACT to pull out revenue section only
     extracted_data := PARSE_JSON(
         AI_EXTRACT(
             parsed_text,
             OBJECT_CONSTRUCT(
-                -- Revenue section
-                'total_revenue', 'Extract the total revenue or total income amount in millions USD',
-                'lease_rental_income', 'Extract the lease rental income or lease rentals amount in millions USD',
-                'net_gain_disposal', 'Extract the net gain on disposal of aircraft amount in millions USD',
-                'other_income', 'Extract other income or other revenue amount in millions USD',
-                
-                -- Operating expenses
-                'depreciation', 'Extract the depreciation expense amount in millions USD',
-                'staff_costs', 'Extract staff costs or employee costs amount in millions USD',
-                'other_operating_expenses', 'Extract other operating expenses amount in millions USD',
-                
-                -- Operating profit
-                'operating_profit', 'Extract the operating profit or profit from operations amount in millions USD',
-                
-                -- Finance costs
-                'interest_expense', 'Extract interest expense or finance costs amount in millions USD',
-                
-                -- Profit metrics
-                'profit_before_tax', 'Extract profit before tax or profit before income tax amount in millions USD',
-                'income_tax_expense', 'Extract income tax expense or taxation amount in millions USD',
-                'profit_after_tax', 'Extract profit after tax or profit for the period amount in millions USD',
-                'profit_attributable_to_shareholders', 'Extract profit attributable to shareholders or profit attributable to owners amount in millions USD',
-                
-                -- Per share
-                'basic_eps', 'Extract basic earnings per share in USD',
-                'diluted_eps', 'Extract diluted earnings per share in USD'
+                'total_revenue', 'Extract the total revenue in millions USD',
+                'lease_rental_income', 'Extract the lease rental income in millions USD',
+                'net_gain_disposal', 'Extract the net gain on disposal of aircraft in millions USD',
+                'other_income', 'Extract other income in millions USD'
             )
         )
     );
     
-    -- Insert extracted data into income statement table
+    -- Insert extracted revenue data
     INSERT INTO PROCESSED.INCOME_STATEMENT (
         statement_id,
         document_id,
@@ -190,18 +165,7 @@ BEGIN
         total_revenue,
         lease_rental_income,
         net_gain_disposal_aircraft,
-        other_income,
-        depreciation,
-        staff_costs,
-        other_operating_expenses,
-        operating_profit,
-        interest_expense,
-        profit_before_tax,
-        income_tax_expense,
-        profit_after_tax,
-        profit_attributable_to_shareholders,
-        basic_earnings_per_share,
-        diluted_earnings_per_share
+        other_income
     )
     SELECT 
         'IS_' || DOCUMENT_ID,
@@ -211,24 +175,15 @@ BEGIN
         TRY_TO_NUMBER(extracted_data:total_revenue::VARCHAR),
         TRY_TO_NUMBER(extracted_data:lease_rental_income::VARCHAR),
         TRY_TO_NUMBER(extracted_data:net_gain_disposal::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:other_income::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:depreciation::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:staff_costs::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:other_operating_expenses::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:operating_profit::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:interest_expense::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:profit_before_tax::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:income_tax_expense::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:profit_after_tax::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:profit_attributable_to_shareholders::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:basic_eps::VARCHAR),
-        TRY_TO_NUMBER(extracted_data:diluted_eps::VARCHAR)
+        TRY_TO_NUMBER(extracted_data:other_income::VARCHAR)
     FROM RAW.PARSED_DOCUMENTS pd
     WHERE pd.document_id = DOCUMENT_ID;
     
-    RETURN 'Income statement extracted successfully for document: ' || DOCUMENT_ID;
+    RETURN 'Revenue data extracted for: ' || DOCUMENT_ID;
 END;
 $$;
+
+CALL EXTRACT_INCOME_STATEMENT ('1');
 
 -- =====================================================
 -- STEP 3: Complete Workflow - Parse & Extract
