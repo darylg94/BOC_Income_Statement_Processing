@@ -95,19 +95,17 @@ AS
 $$
 DECLARE
     doc_id VARCHAR;
-    parsed_content VARIANT;
-    stage_file_path VARCHAR;
+    parsed_result VARIANT;
 BEGIN
     -- Generate unique document ID
     doc_id := 'DOC_' || REPORT_YEAR || '_' || REPLACE(REPORT_PERIOD, ' ', '_');
     
-    -- Build the stage file reference
-    stage_file_path := '@RAW.Documents/' || FILE_PATH;
-    
-    -- Use SNOWFLAKE.CORTEX.PARSE_DOCUMENT to extract text from PDF with OCR
-    parsed_content := SNOWFLAKE.CORTEX.PARSE_DOCUMENT(
-        stage_file_path
-    );
+    -- Use AI_PARSE_DOCUMENT with correct syntax from documentation
+    -- Reference: https://docs.snowflake.com/en/user-guide/snowflake-cortex/parse-document
+    SELECT AI_PARSE_DOCUMENT(
+        TO_FILE('@RAW.Documents', FILE_PATH),
+        {'mode': 'LAYOUT'}
+    ) INTO parsed_result;
     
     -- Store parsed content
     INSERT INTO RAW.PARSED_DOCUMENTS (
@@ -121,7 +119,7 @@ BEGIN
         FILE_PATH,
         REPORT_YEAR,
         REPORT_PERIOD,
-        parsed_content
+        parsed_result
     );
     
     RETURN 'Document parsed successfully. Document ID: ' || doc_id;
@@ -141,9 +139,11 @@ DECLARE
     parsed_text VARCHAR;
     extracted_data VARIANT;
 BEGIN
-    -- Get the parsed document content
-    SELECT parsed_content:content::VARCHAR INTO parsed_text
-    FROM RAW.PARSED_DOCUMENTS
+    -- Get the parsed document content from all pages
+    -- AI_PARSE_DOCUMENT returns JSON with structure: {"metadata": {...}, "pages": [{"content": "..."}]}
+    SELECT LISTAGG(page_content.value:content::VARCHAR, '\n\n') INTO parsed_text
+    FROM RAW.PARSED_DOCUMENTS,
+    LATERAL FLATTEN(input => parsed_content:pages) page_content
     WHERE document_id = DOCUMENT_ID;
     
     -- Use AI_EXTRACT to pull out specific income statement line items
