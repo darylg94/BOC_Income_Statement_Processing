@@ -248,15 +248,23 @@ LANGUAGE SQL
 AS
 $$
 DECLARE
+    v_file_path VARCHAR;
+    v_report_year INTEGER;
+    v_report_period VARCHAR;
     parse_result VARCHAR;
     doc_id VARCHAR;
     extract_result VARCHAR;
 BEGIN
+    -- Copy parameters to local variables
+    v_file_path := :FILE_PATH;
+    v_report_year := :REPORT_YEAR;
+    v_report_period := :REPORT_PERIOD;
+    
     -- Step 1: Parse PDF with OCR
-    CALL RAW.PARSE_FINANCIAL_REPORT(FILE_PATH, REPORT_YEAR, REPORT_PERIOD) INTO parse_result;
+    CALL RAW.PARSE_FINANCIAL_REPORT(v_file_path, v_report_year, v_report_period) INTO parse_result;
     
     -- Extract document ID from result
-    doc_id := 'DOC_' || REPORT_YEAR || '_' || REPLACE(REPORT_PERIOD, ' ', '_');
+    doc_id := 'DOC_' || v_report_year || '_' || REPLACE(v_report_period, ' ', '_');
     
     -- Step 2: Extract income statement data
     CALL RAW.EXTRACT_INCOME_STATEMENT(doc_id) INTO extract_result;
