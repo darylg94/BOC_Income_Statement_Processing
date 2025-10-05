@@ -3,19 +3,15 @@
 -- =====================================================
 
 USE WAREHOUSE COMPUTE_WH;
-USE DATABASE BOC_INCOME_STATEMENT;
+USE DATABASE BOCA_INCOME_STATEMENT;
 
 -- =====================================================
 -- STEP 1: Upload PDF Reports to Stage
 -- =====================================================
 
-PUT file:///Users/dgoh/Desktop/Customer\ PoCs/BOC\ Aviation/pdfs/reports/*.pdf 
-    @FINANCIAL_REPORTS_STAGE 
-    AUTO_COMPRESS=FALSE
-    OVERWRITE=TRUE;
 
 -- Verify files uploaded
-LIST @FINANCIAL_REPORTS_STAGE;
+LIST @DOCUMENTS;
 
 -- =====================================================
 -- STEP 2: Process Reports

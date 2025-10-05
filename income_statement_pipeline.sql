@@ -2,9 +2,8 @@
 -- BOC Aviation Income Statement Pipeline
 -- Simple workflow using Document AI for OCR extraction
 -- =====================================================
-
-CREATE DATABASE IF NOT EXISTS BOC_INCOME_STATEMENT;
-USE DATABASE BOC_INCOME_STATEMENT;
+CREATE DATABASE IF NOT EXISTS BOCA_INCOME_STATEMENT;
+USE DATABASE BOCA_INCOME_STATEMENT;
 
 CREATE SCHEMA IF NOT EXISTS RAW;
 CREATE SCHEMA IF NOT EXISTS PROCESSED;
@@ -16,11 +15,10 @@ USE WAREHOUSE COMPUTE_WH;
 -- STAGE SETUP
 -- =====================================================
 
-CREATE OR REPLACE FILE FORMAT PDF_FORMAT TYPE = 'PDF';
+CREATE STAGE IF NOT EXISTS Documents 
+	DIRECTORY = ( ENABLE = true ) 
+	ENCRYPTION = ( TYPE = 'SNOWFLAKE_SSE' );
 
-CREATE OR REPLACE STAGE FINANCIAL_REPORTS_STAGE
-    FILE_FORMAT = PDF_FORMAT
-    COMMENT = 'Stage for BOC Aviation financial report PDFs';
 
 -- =====================================================
 -- RAW TABLE - Store parsed PDF content
@@ -76,15 +74,14 @@ CREATE OR REPLACE TABLE PROCESSED.INCOME_STATEMENT (
     -- Metadata
     currency VARCHAR(3) DEFAULT 'USD',
     unit VARCHAR(20) DEFAULT 'MILLION',
-    processed_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    processed_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
     
-    FOREIGN KEY (document_id) REFERENCES RAW.PARSED_DOCUMENTS(document_id)
 );
 
 -- =====================================================
 -- STEP 1: Parse PDF using AI_PARSE_DOCUMENT
 -- =====================================================
-
+USE SCHEMA RAW;
 CREATE OR REPLACE PROCEDURE PARSE_FINANCIAL_REPORT(
     FILE_PATH VARCHAR,
     REPORT_YEAR INTEGER,
