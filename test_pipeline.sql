@@ -25,9 +25,9 @@ SHOW TABLES IN PROCESSED;
 -- Step 4: Verify procedures exist
 SELECT '=== STEP 4: Verify Procedures ===' as test_step;
 
-SHOW PROCEDURES LIKE 'PARSE_FINANCIAL_REPORT';
-SHOW PROCEDURES LIKE 'EXTRACT_INCOME_STATEMENT';
-SHOW PROCEDURES LIKE 'PROCESS_INCOME_STATEMENT';
+SHOW PROCEDURES LIKE 'PARSE_FINANCIAL_REPORT' IN SCHEMA RAW;
+SHOW PROCEDURES LIKE 'EXTRACT_INCOME_STATEMENT' IN SCHEMA RAW;
+SHOW PROCEDURES LIKE 'PROCESS_INCOME_STATEMENT' IN SCHEMA RAW;
 
 -- Step 5: Check if files are in stage
 SELECT '=== STEP 5: Check Stage Files ===' as test_step;
@@ -38,7 +38,7 @@ LIST @Documents;
 SELECT '=== STEP 6: Test Processing (if files exist) ===' as test_step;
 
 -- Uncomment and modify the filename below to test
--- CALL PROCESS_INCOME_STATEMENT(
+-- CALL RAW.PROCESS_INCOME_STATEMENT(
 --     '2023 Final Results EN 14Mar24.pdf',
 --     2023,
 --     'FY2023'

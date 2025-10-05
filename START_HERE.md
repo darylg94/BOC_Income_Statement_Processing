@@ -21,7 +21,7 @@ Then process one file:
 ```sql
 USE DATABASE BOCA_INCOME_STATEMENT;
 
-CALL PROCESS_INCOME_STATEMENT(
+CALL RAW.PROCESS_INCOME_STATEMENT(
     '2023 Final Results EN 14Mar24.pdf',
     2023,
     'FY2023'
@@ -62,7 +62,7 @@ parse_result := PARSE_FINANCIAL_REPORT(FILE_PATH, REPORT_YEAR, REPORT_PERIOD);
 
 ### After (Fixed):
 ```sql
-CALL PARSE_FINANCIAL_REPORT(FILE_PATH, REPORT_YEAR, REPORT_PERIOD) INTO parse_result;
+CALL RAW.PARSE_FINANCIAL_REPORT(FILE_PATH, REPORT_YEAR, REPORT_PERIOD) INTO parse_result;
 ```
 
 **Why**: In Snowflake, stored procedures must call other procedures using `CALL ... INTO`, not function-style syntax.
@@ -82,10 +82,10 @@ CALL PARSE_FINANCIAL_REPORT(FILE_PATH, REPORT_YEAR, REPORT_PERIOD) INTO parse_re
 
 ## ⚡ Quick Commands
 
-### Check if procedures exist:
+### Check if procedures exist
 ```sql
 USE DATABASE BOCA_INCOME_STATEMENT;
-SHOW PROCEDURES;
+SHOW PROCEDURES IN SCHEMA RAW;
 ```
 
 ### Check if files are uploaded:
@@ -102,7 +102,7 @@ PUT file:///Users/dgoh/Desktop/Customer\ PoCs/BOC\ Aviation/pdfs/reports/*.pdf
 
 ### Process a single file:
 ```sql
-CALL PROCESS_INCOME_STATEMENT(
+CALL RAW.PROCESS_INCOME_STATEMENT(
     '2023 Final Results EN 14Mar24.pdf',
     2023,
     'FY2023'
@@ -175,7 +175,7 @@ After processing, you'll have:
 PUT file:///path/to/*.pdf @Documents;
 
 -- Step 3: Process one file
-CALL PROCESS_INCOME_STATEMENT(
+CALL RAW.PROCESS_INCOME_STATEMENT(
     'your_file.pdf',
     2024,
     'FY2024'

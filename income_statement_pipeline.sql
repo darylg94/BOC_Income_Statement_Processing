@@ -104,7 +104,7 @@ BEGIN
     -- Mode: LAYOUT preserves document structure including tables
     parsed_content := PARSE_JSON(
         AI_PARSE_DOCUMENT(
-            '@FINANCIAL_REPORTS_STAGE',
+            '@RAW.Documents',
             FILE_PATH,
             OBJECT_CONSTRUCT(
                 'mode', 'LAYOUT',
@@ -253,13 +253,13 @@ DECLARE
     extract_result VARCHAR;
 BEGIN
     -- Step 1: Parse PDF with OCR
-    CALL PARSE_FINANCIAL_REPORT(FILE_PATH, REPORT_YEAR, REPORT_PERIOD) INTO parse_result;
+    CALL RAW.PARSE_FINANCIAL_REPORT(FILE_PATH, REPORT_YEAR, REPORT_PERIOD) INTO parse_result;
     
     -- Extract document ID from result
     doc_id := 'DOC_' || REPORT_YEAR || '_' || REPLACE(REPORT_PERIOD, ' ', '_');
     
     -- Step 2: Extract income statement data
-    CALL EXTRACT_INCOME_STATEMENT(doc_id) INTO extract_result;
+    CALL RAW.EXTRACT_INCOME_STATEMENT(doc_id) INTO extract_result;
     
     RETURN 'Processing complete. ' || parse_result || ' | ' || extract_result;
 END;
