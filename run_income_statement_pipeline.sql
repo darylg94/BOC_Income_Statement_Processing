@@ -1,5 +1,5 @@
 -- =====================================================
--- Execute Income Statement Pipeline
+-- Execute Income Statement Pipeline (FIXED VERSION)
 -- =====================================================
 
 USE WAREHOUSE COMPUTE_WH;
@@ -10,12 +10,15 @@ USE DATABASE BOCA_INCOME_STATEMENT;
 -- =====================================================
 
 
+
 -- Verify files uploaded
-LIST @DOCUMENTS;
+LIST @Documents;
 
 -- =====================================================
 -- STEP 2: Process Reports
 -- =====================================================
+
+
 
 -- Process 2024 Final Results
 CALL PROCESS_INCOME_STATEMENT(
@@ -24,16 +27,11 @@ CALL PROCESS_INCOME_STATEMENT(
     'FY2024'
 );
 
--- Process 2023 Final Results
-CALL PROCESS_INCOME_STATEMENT(
-    '2023 Final Results EN 14Mar24.pdf',
-    2023,
-    'FY2023'
-);
 
 -- =====================================================
 -- STEP 3: Verify Data
 -- =====================================================
+
 
 -- Check parsed documents
 SELECT 
@@ -59,8 +57,10 @@ FROM PROCESSED.INCOME_STATEMENT
 ORDER BY report_year DESC;
 
 -- =====================================================
--- STEP 4: View Results
+-- STEP 4: View Results & Analysis
 -- =====================================================
+
+SELECT '=== STEP 4: Viewing Results ===' as step;
 
 -- Summary Dashboard
 SELECT 
@@ -84,6 +84,7 @@ SELECT * FROM PROCESSED.INCOME_STATEMENT_DETAILED;
 -- STEP 5: Analysis Queries
 -- =====================================================
 
+
 -- 1. Revenue Composition Analysis
 SELECT 
     report_period,
@@ -91,33 +92,18 @@ SELECT
     lease_rental_income,
     net_gain_disposal_aircraft,
     other_income,
-    ROUND((lease_rental_income / total_revenue * 100), 1) as lease_rental_pct,
-    ROUND((net_gain_disposal_aircraft / total_revenue * 100), 1) as disposal_gain_pct,
-    ROUND((other_income / total_revenue * 100), 1) as other_income_pct
+    ROUND((lease_rental_income / NULLIF(total_revenue, 0) * 100), 1) as lease_rental_pct,
+    ROUND((net_gain_disposal_aircraft / NULLIF(total_revenue, 0) * 100), 1) as disposal_gain_pct,
+    ROUND((other_income / NULLIF(total_revenue, 0) * 100), 1) as other_income_pct
 FROM PROCESSED.INCOME_STATEMENT
 WHERE total_revenue IS NOT NULL
 ORDER BY report_year DESC;
 
--- 2. Operating Expense Analysis
-SELECT 
-    report_period,
-    depreciation,
-    staff_costs,
-    other_operating_expenses,
-    (depreciation + staff_costs + other_operating_expenses) as total_expenses,
-    operating_profit,
-    ROUND((depreciation / NULLIF(total_revenue, 0) * 100), 1) as depreciation_pct,
-    ROUND((staff_costs / NULLIF(total_revenue, 0) * 100), 1) as staff_costs_pct
-FROM PROCESSED.INCOME_STATEMENT
-WHERE total_revenue IS NOT NULL
-ORDER BY report_year DESC;
-
--- 3. Profitability Trend
+-- 2. Profitability Trend
 SELECT 
     report_period,
     total_revenue,
     operating_profit,
-    profit_before_tax,
     profit_after_tax,
     ROUND((operating_profit / NULLIF(total_revenue, 0) * 100), 2) as operating_margin,
     ROUND((profit_after_tax / NULLIF(total_revenue, 0) * 100), 2) as net_margin,
@@ -126,7 +112,7 @@ FROM PROCESSED.INCOME_STATEMENT
 WHERE total_revenue IS NOT NULL
 ORDER BY report_year DESC;
 
--- 4. Year-over-Year Growth
+-- 3. Year-over-Year Growth
 SELECT 
     report_year,
     report_period,
@@ -140,65 +126,5 @@ FROM PROCESSED.INCOME_STATEMENT_TRENDS
 WHERE prior_period_revenue IS NOT NULL
 ORDER BY report_year DESC;
 
--- 5. Tax Analysis
-SELECT 
-    report_period,
-    profit_before_tax,
-    income_tax_expense,
-    profit_after_tax,
-    ROUND((income_tax_expense / NULLIF(profit_before_tax, 0) * 100), 2) as effective_tax_rate_pct
-FROM PROCESSED.INCOME_STATEMENT
-WHERE profit_before_tax IS NOT NULL
-ORDER BY report_year DESC;
 
--- =====================================================
--- STEP 6: Export for Reporting
--- =====================================================
 
--- Create simple CSV export view
-CREATE OR REPLACE VIEW PROCESSED.INCOME_STATEMENT_EXPORT AS
-SELECT 
-    report_year,
-    report_period,
-    total_revenue as "Total Revenue (USD Million)",
-    lease_rental_income as "Lease Rental Income (USD Million)",
-    operating_profit as "Operating Profit (USD Million)",
-    profit_before_tax as "Profit Before Tax (USD Million)",
-    profit_after_tax as "Profit After Tax (USD Million)",
-    profit_attributable_to_shareholders as "Profit to Shareholders (USD Million)",
-    basic_earnings_per_share as "Basic EPS (USD)",
-    ROUND((operating_profit / NULLIF(total_revenue, 0) * 100), 2) as "Operating Margin %",
-    ROUND((profit_after_tax / NULLIF(total_revenue, 0) * 100), 2) as "Net Margin %"
-FROM PROCESSED.INCOME_STATEMENT
-ORDER BY report_year DESC;
-
--- View the export data
-SELECT * FROM PROCESSED.INCOME_STATEMENT_EXPORT;
-
--- =====================================================
--- STEP 7: Monitor Pipeline
--- =====================================================
-
--- Check stream status
-SELECT SYSTEM$STREAM_HAS_DATA('INCOME_STATEMENT_STREAM');
-
--- View stream changes
-SELECT * FROM INCOME_STATEMENT_STREAM;
-
--- Check task execution
-SELECT *
-FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY())
-WHERE NAME = 'REFRESH_INCOME_STATEMENT_TRENDS'
-ORDER BY SCHEDULED_TIME DESC
-LIMIT 5;
-
--- Check dynamic table refresh
-SELECT 
-    TABLE_NAME,
-    TARGET_LAG,
-    DATA_TIMESTAMP,
-    REFRESH_MODE,
-    LAST_REFRESH_START_TIME,
-    LAST_REFRESH_END_TIME
-FROM TABLE(INFORMATION_SCHEMA.DYNAMIC_TABLES())
-WHERE TABLE_NAME = 'INCOME_STATEMENT_TRENDS';

@@ -251,13 +251,13 @@ DECLARE
     extract_result VARCHAR;
 BEGIN
     -- Step 1: Parse PDF with OCR
-    parse_result := PARSE_FINANCIAL_REPORT(FILE_PATH, REPORT_YEAR, REPORT_PERIOD);
+    CALL PARSE_FINANCIAL_REPORT(FILE_PATH, REPORT_YEAR, REPORT_PERIOD) INTO parse_result;
     
     -- Extract document ID from result
     doc_id := 'DOC_' || REPORT_YEAR || '_' || REPLACE(REPORT_PERIOD, ' ', '_');
     
     -- Step 2: Extract income statement data
-    extract_result := EXTRACT_INCOME_STATEMENT(doc_id);
+    CALL EXTRACT_INCOME_STATEMENT(doc_id) INTO extract_result;
     
     RETURN 'Processing complete. ' || parse_result || ' | ' || extract_result;
 END;
